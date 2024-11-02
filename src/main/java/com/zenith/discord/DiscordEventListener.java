@@ -7,6 +7,8 @@ import com.zenith.feature.deathmessages.DeathMessageParseResult;
 import com.zenith.feature.deathmessages.KillerType;
 import com.zenith.feature.queue.Queue;
 import com.zenith.util.DisconnectReasonInfo;
+import com.zenith.util.SpamDetector;
+import com.zenith.util.ChatThrottler;
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
 import discord4j.core.event.domain.message.MessageCreateEvent;
 import discord4j.core.object.component.Button;
@@ -39,10 +41,14 @@ import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 public class DiscordEventListener {
+    private SpamDetector spamDetector;
+    private ChatThrottler chatThrottler;
     private final DiscordBot bot;
 
     public DiscordEventListener(DiscordBot bot) {
         this.bot = bot;
+        this.spamDetector = new SpamDetector();
+        this.chatThrottler = new ChatThrottler();
     }
 
     public void subscribeEvents() {
@@ -483,6 +489,8 @@ public class DiscordEventListener {
                 message = "**" + event.sender().get().getName() + ":** " + message.substring(message.indexOf(" ") + 1);
                 senderName = event.sender().get().getName();
                 senderUUID = event.sender().get().getProfileId();
+                // Crackpot anti-spam
+                if (spamDetector.isSpam(senderUUID, message)) return;
             } else if (event.isWhisper()) {
                 if (!CONFIG.discord.chatRelay.whispers) return;
                 message = message.replace(event.sender().get().getName(), "**" + event.sender().get().getName() + "**");
@@ -597,7 +605,7 @@ public class DiscordEventListener {
             if (event.message().startsWith(CONFIG.discord.prefix)) { // send as private message
                 sendPrivateMessage(event.message().substring(CONFIG.discord.prefix.length()), event.event());
             } else {
-                Proxy.getInstance().getClient().sendAsync(new ServerboundChatPacket(event.message()));
+                chatThrottler.sendMessageWithThrottle(event.message());
             }
         }
         bot.lastRelaymessage = Optional.of(Instant.now());
