@@ -28,6 +28,9 @@ import org.geysermc.mcprotocollib.protocol.codec.MinecraftCodec;
 import org.geysermc.mcprotocollib.protocol.data.game.PlayerListEntry;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundChatPacket;
 
+import com.zenith.util.SpamDetector;
+import com.zenith.util.ChatThrottler;
+
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -49,8 +52,13 @@ import static java.util.Objects.nonNull;
 
 public class NotificationEventListener {
     public static final NotificationEventListener INSTANCE = new NotificationEventListener();
+    private SpamDetector spamDetector;
+    private ChatThrottler chatThrottler;
+
     public void subscribeEvents() {
         if (EVENT_BUS.isSubscribed(this)) throw new RuntimeException("Event handlers already initialized");
+        this.spamDetector = new SpamDetector();
+        this.chatThrottler = new ChatThrottler();
         EVENT_BUS.subscribe(
             this,
             of(ConnectEvent.class, this::handleConnectEvent),
@@ -605,6 +613,7 @@ public class NotificationEventListener {
                 .footer("\u200b", avatarURL)
                 .color(color)
                 .timestamp(Instant.now());
+            if (spamDetector.isSpam(senderUUID, message)) return;
             if (ping.isEmpty()) {
                 sendRelayEmbedMessage(embed);
             } else {
@@ -732,7 +741,7 @@ public class NotificationEventListener {
             if (event.message().startsWith(CONFIG.discord.prefix)) { // send as private message
                 sendPrivateMessage(event.message().substring(CONFIG.discord.prefix.length()), event.event());
             } else {
-                Proxy.getInstance().getClient().sendAsync(new ServerboundChatPacket(event.message()));
+                chatThrottler.sendMessageWithThrottle(event.message());
             }
         }
         DISCORD.lastRelayMessage = Optional.of(Instant.now());
