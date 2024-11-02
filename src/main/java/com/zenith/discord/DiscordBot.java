@@ -280,9 +280,9 @@ public class DiscordBot {
             DISCORD_LOG.error("Failed sending message to relay channel. Check bot permissions.");
             DISCORD_LOG.debug("Failed sending message to relay channel. Check bot permissions.", e);
         }
-        if (relayChannelMessageQueue.size() > 250) {
+        if (relayChannelMessageQueue.size() > 10) {
             DISCORD_LOG.error("Flushing relay channel message queue to reclaim memory, current size: {}", relayChannelMessageQueue.size());
-            while (relayChannelMessageQueue.size() > 100) {
+            while (relayChannelMessageQueue.size() != 0) {
                 relayChannelMessageQueue.poll();
             }
         }
