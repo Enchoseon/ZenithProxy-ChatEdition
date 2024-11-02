@@ -24,6 +24,7 @@ __pycache__/
 /launcher-python*
 maps/
 replays/
+workspace/
 
 dataGenerator/run
 /dataGenerator/.gradle
